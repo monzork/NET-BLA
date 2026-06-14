@@ -70,13 +70,12 @@ public class UserRepository : IUserRepository
 
     private User MapReaderToUser(SqlDataReader reader)
     {
-        return new User
-        {
-            Id = reader.GetGuid(0),
-            Username = reader.GetString(1),
-            Email = reader.GetString(2),
-            PasswordHash = reader.GetString(3),
-            CreatedAt = reader.GetDateTime(4)
-        };
+        return new User(
+            reader.GetGuid(0),
+            reader.GetString(1),
+            reader.GetString(2),
+            reader.GetString(3),
+            reader.GetDateTime(4)
+        );
     }
 }

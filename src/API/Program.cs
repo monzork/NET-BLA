@@ -9,11 +9,14 @@ using Infrastructure;
 using Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,6 +54,23 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
         ClockSkew = TimeSpan.Zero
     };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var authHeader = context.Request.Headers["Authorization"].ToString();
+            if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                var token = authHeader.Substring("Bearer ".Length).Trim();
+                var repo = context.HttpContext.RequestServices.GetRequiredService<IRevokedTokenRepository>();
+                if (await repo.IsRevokedAsync(token))
+                {
+                    context.Fail("Token has been revoked.");
+                }
+            }
+        }
+    };
 });
 
 // Configure CORS
@@ -65,6 +85,29 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Configure Rate Limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Brute-force protection for registration and login
+    options.AddFixedWindowLimiter("auth", opt =>
+    {
+        opt.PermitLimit = 10; // 10 attempts
+        opt.Window = TimeSpan.FromMinutes(1); // per minute
+        opt.QueueLimit = 0; // Reject immediately if limit exceeded
+    });
+
+    // General API rate limit
+    options.AddSlidingWindowLimiter("global", opt =>
+    {
+        opt.PermitLimit = 100;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.SegmentsPerWindow = 4;
+        opt.QueueLimit = 5;
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -74,6 +117,7 @@ app.UseCors("CorsPolicy");
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapControllers();
 

@@ -13,11 +13,13 @@ public class TaskService
 {
     private readonly ITaskRepository _taskRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IDateTimeProvider _dateTimeProvider;
 
-    public TaskService(ITaskRepository taskRepository, ICurrentUserService currentUserService)
+    public TaskService(ITaskRepository taskRepository, ICurrentUserService currentUserService, IDateTimeProvider dateTimeProvider)
     {
         _taskRepository = taskRepository;
         _currentUserService = currentUserService;
+        _dateTimeProvider = dateTimeProvider;
     }
 
     public virtual async Task<IEnumerable<TaskDto>> GetTasksForCurrentUserAsync()
@@ -45,18 +47,18 @@ public class TaskService
     public virtual async Task<TaskDto> CreateTaskAsync(CreateTaskDto dto)
     {
         var userId = GetCurrentUserIdOrThrow();
-        ValidateTaskData(dto.Title, dto.DueDate, dto.Status);
+        var parsedStatus = ParseStatusOrThrow(dto.Status);
 
-        var task = new TaskItem
-        {
-            Id = Guid.NewGuid(),
-            Title = dto.Title,
-            Description = dto.Description ?? string.Empty,
-            Status = Enum.Parse<TaskItemStatus>(dto.Status, true),
-            DueDate = dto.DueDate,
-            UserId = userId,
-            CreatedAt = DateTime.UtcNow
-        };
+        var task = new TaskItem(
+            Guid.NewGuid(),
+            dto.Title,
+            dto.Description ?? string.Empty,
+            parsedStatus,
+            dto.DueDate,
+            userId,
+            _dateTimeProvider.UtcNow,
+            _dateTimeProvider.UtcNow
+        );
 
         await _taskRepository.CreateAsync(task);
         return MapToDto(task);
@@ -77,12 +79,14 @@ public class TaskService
             throw new UnauthorizedAccessException("You do not have permission to access this task.");
         }
 
-        ValidateTaskData(dto.Title, dto.DueDate, dto.Status);
-
-        task.Title = dto.Title;
-        task.Description = dto.Description ?? string.Empty;
-        task.Status = Enum.Parse<TaskItemStatus>(dto.Status, true);
-        task.DueDate = dto.DueDate;
+        var parsedStatus = ParseStatusOrThrow(dto.Status);
+        task.Update(
+            dto.Title,
+            dto.Description ?? string.Empty,
+            parsedStatus,
+            dto.DueDate,
+            _dateTimeProvider.UtcNow
+        );
 
         await _taskRepository.UpdateAsync(task);
         return MapToDto(task);
@@ -116,28 +120,15 @@ public class TaskService
         return userId.Value;
     }
 
-    private void ValidateTaskData(string title, DateTime? dueDate, string status)
+    private TaskItemStatus ParseStatusOrThrow(string status)
     {
-        if (string.IsNullOrWhiteSpace(title))
-        {
-            throw new ArgumentException("Title is required.");
-        }
-
-        if (dueDate.HasValue && dueDate.Value < DateTime.UtcNow)
-        {
-            // Give a tiny tolerance of 2 seconds to avoid race conditions in fast tests
-            if (DateTime.UtcNow.Subtract(dueDate.Value).TotalSeconds > 2)
-            {
-                throw new ArgumentException("DueDate cannot be in the past.");
-            }
-        }
-
         if (string.IsNullOrWhiteSpace(status) || 
             (!Enum.TryParse<TaskItemStatus>(status, true, out var parsedStatus) || 
              !Enum.IsDefined(typeof(TaskItemStatus), parsedStatus)))
         {
             throw new ArgumentException("Status must be Pending, InProgress, or Completed.");
         }
+        return parsedStatus;
     }
 
     private TaskDto MapToDto(TaskItem task)

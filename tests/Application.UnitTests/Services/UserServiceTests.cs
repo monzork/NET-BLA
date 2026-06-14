@@ -14,13 +14,17 @@ public class UserServiceTests
 {
     private readonly MockUserRepository _userRepository;
     private readonly MockJwtProvider _jwtProvider;
+    private readonly MockDateTimeProvider _dateTimeProvider;
+    private readonly MockPasswordHasher _passwordHasher;
     private readonly UserService _userService;
 
     public UserServiceTests()
     {
         _userRepository = new MockUserRepository();
         _jwtProvider = new MockJwtProvider();
-        _userService = new UserService(_userRepository, _jwtProvider);
+        _dateTimeProvider = new MockDateTimeProvider();
+        _passwordHasher = new MockPasswordHasher();
+        _userService = new UserService(_userRepository, _jwtProvider, _dateTimeProvider, _passwordHasher);
     }
 
     [Fact]
@@ -35,13 +39,7 @@ public class UserServiceTests
     [Fact]
     public async Task Register_ShouldThrowException_WhenEmailAlreadyExists()
     {
-        var existingUser = new User
-        {
-            Id = Guid.NewGuid(),
-            Email = "test@example.com",
-            Username = "existing",
-            PasswordHash = "hashed"
-        };
+        var existingUser = new User(Guid.NewGuid(), "existing", "test@example.com", "hashed", DateTime.UtcNow);
         _userRepository.Users.Add(existingUser);
 
         var request = new RegisterRequest("username", "test@example.com", "password");
@@ -80,13 +78,13 @@ public class UserServiceTests
     public async Task Login_ShouldThrowException_WhenPasswordIsIncorrect()
     {
         // Simple hash logic: password + "_hashed" (just for mock testing)
-        var user = new User
-        {
-            Id = Guid.NewGuid(),
-            Email = "test@example.com",
-            Username = "testuser",
-            PasswordHash = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Password123!"))
-        };
+        var user = new User(
+            Guid.NewGuid(),
+            "testuser",
+            "test@example.com",
+            Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Password123!")),
+            DateTime.UtcNow
+        );
         _userRepository.Users.Add(user);
 
         var request = new LoginRequest("test@example.com", "WrongPassword");
@@ -100,16 +98,13 @@ public class UserServiceTests
     {
         // Password hash using base64 for simplicity in mocks/tests
         var password = "Password123!";
-        var user = new User
-        {
-            Id = Guid.NewGuid(),
-            Email = "test@example.com",
-            Username = "testuser",
-            // We use standard hashing in UserService, but in mock we can just use the actual hashing method or make the UserService hashing testable.
-            // Since we'll write UserService hash logic using a SHA256 helper, let's hash "Password123!" using SHA256.
-            // Let's implement a SHA256 helper in the actual service, but in the test, we'll hash it similarly:
-            PasswordHash = HashPassword(password)
-        };
+        var user = new User(
+            Guid.NewGuid(),
+            "testuser",
+            "test@example.com",
+            HashPassword(password),
+            DateTime.UtcNow
+        );
         _userRepository.Users.Add(user);
 
         var request = new LoginRequest("test@example.com", password);
@@ -158,6 +153,26 @@ public class MockJwtProvider : IJwtProvider
     public string Generate(User user)
     {
         return $"mock_token_{user.Username}";
+    }
+}
+
+public class MockDateTimeProvider : IDateTimeProvider
+{
+    public DateTime UtcNow { get; set; } = DateTime.UtcNow;
+}
+
+public class MockPasswordHasher : IPasswordHasher
+{
+    public string HashPassword(string password)
+    {
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        var hashedBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
+        return Convert.ToBase64String(hashedBytes);
+    }
+
+    public bool VerifyPassword(string password, string hashedPassword)
+    {
+        return HashPassword(password) == hashedPassword;
     }
 }
 

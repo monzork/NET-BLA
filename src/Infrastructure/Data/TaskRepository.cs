@@ -122,15 +122,14 @@ public class TaskRepository : ITaskRepository
 
     private TaskItem MapReaderToTask(SqlDataReader reader)
     {
-        return new TaskItem
-        {
-            Id = reader.GetGuid(0),
-            Title = reader.GetString(1),
-            Description = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
-            Status = (TaskItemStatus)reader.GetInt32(3),
-            DueDate = reader.IsDBNull(4) ? null : reader.GetDateTime(4),
-            UserId = reader.GetGuid(5),
-            CreatedAt = reader.GetDateTime(6)
-        };
+        return TaskItem.CreateFromDatabase(
+            reader.GetGuid(0),
+            reader.GetString(1),
+            reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+            (TaskItemStatus)reader.GetInt32(3),
+            reader.IsDBNull(4) ? null : reader.GetDateTime(4),
+            reader.GetGuid(5),
+            reader.GetDateTime(6)
+        );
     }
 }

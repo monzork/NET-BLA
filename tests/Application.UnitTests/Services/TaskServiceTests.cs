@@ -15,21 +15,24 @@ public class TaskServiceTests
 {
     private readonly MockTaskRepository _taskRepository;
     private readonly MockCurrentUserService _currentUserService;
+    private readonly MockDateTimeProvider _dateTimeProvider;
     private readonly TaskService _taskService;
     private readonly Guid _currentUserId = Guid.NewGuid();
+    private readonly DateTime _frozenTime = new DateTime(2026, 6, 14, 12, 0, 0, DateTimeKind.Utc);
 
     public TaskServiceTests()
     {
         _taskRepository = new MockTaskRepository();
         _currentUserService = new MockCurrentUserService(_currentUserId);
-        _taskService = new TaskService(_taskRepository, _currentUserService);
+        _dateTimeProvider = new MockDateTimeProvider { UtcNow = _frozenTime };
+        _taskService = new TaskService(_taskRepository, _currentUserService, _dateTimeProvider);
     }
 
     [Fact]
     public async Task CreateTask_ShouldThrowException_WhenTitleIsEmpty()
     {
         // Arrange
-        var dto = new CreateTaskDto("", "Description", "Pending", DateTime.UtcNow.AddDays(1));
+        var dto = new CreateTaskDto("", "Description", "Pending", _frozenTime.AddDays(1));
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => _taskService.CreateTaskAsync(dto));
@@ -40,7 +43,7 @@ public class TaskServiceTests
     public async Task CreateTask_ShouldThrowException_WhenDueDateIsInPast()
     {
         // Arrange
-        var dto = new CreateTaskDto("Task Title", "Description", "Pending", DateTime.UtcNow.AddMinutes(-5));
+        var dto = new CreateTaskDto("Task Title", "Description", "Pending", _frozenTime.AddMinutes(-5));
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => _taskService.CreateTaskAsync(dto));
@@ -51,7 +54,7 @@ public class TaskServiceTests
     public async Task CreateTask_ShouldThrowException_WhenStatusIsInvalid()
     {
         // Arrange
-        var dto = new CreateTaskDto("Task Title", "Description", "InvalidStatus", DateTime.UtcNow.AddDays(1));
+        var dto = new CreateTaskDto("Task Title", "Description", "InvalidStatus", _frozenTime.AddDays(1));
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => _taskService.CreateTaskAsync(dto));
@@ -62,7 +65,7 @@ public class TaskServiceTests
     public async Task CreateTask_ShouldSucceed_WhenDataIsValid()
     {
         // Arrange
-        var dueDate = DateTime.UtcNow.AddDays(1);
+        var dueDate = _frozenTime.AddDays(1);
         var dto = new CreateTaskDto("Task Title", "Description", "Pending", dueDate);
 
         // Act
@@ -86,13 +89,7 @@ public class TaskServiceTests
     {
         // Arrange
         var taskId = Guid.NewGuid();
-        var task = new TaskItem
-        {
-            Id = taskId,
-            Title = "Original",
-            UserId = _currentUserId,
-            Status = Domain.Enums.TaskItemStatus.Pending
-        };
+        var task = TaskItem.CreateFromDatabase(taskId, "Original", "Description", Domain.Enums.TaskItemStatus.Pending, null, _currentUserId, _frozenTime);
         _taskRepository.Tasks.Add(task);
 
         var dto = new UpdateTaskDto("", "Description", "InProgress", null);
@@ -107,16 +104,10 @@ public class TaskServiceTests
     {
         // Arrange
         var taskId = Guid.NewGuid();
-        var task = new TaskItem
-        {
-            Id = taskId,
-            Title = "Original",
-            UserId = _currentUserId,
-            Status = Domain.Enums.TaskItemStatus.Pending
-        };
+        var task = TaskItem.CreateFromDatabase(taskId, "Original", "Description", Domain.Enums.TaskItemStatus.Pending, null, _currentUserId, _frozenTime);
         _taskRepository.Tasks.Add(task);
 
-        var dto = new UpdateTaskDto("Updated Title", "Description", "InProgress", DateTime.UtcNow.AddDays(-1));
+        var dto = new UpdateTaskDto("Updated Title", "Description", "InProgress", _frozenTime.AddDays(-1));
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => _taskService.UpdateTaskAsync(taskId, dto));
@@ -128,13 +119,7 @@ public class TaskServiceTests
     {
         // Arrange
         var taskId = Guid.NewGuid();
-        var task = new TaskItem
-        {
-            Id = taskId,
-            Title = "Original",
-            UserId = _currentUserId,
-            Status = Domain.Enums.TaskItemStatus.Pending
-        };
+        var task = TaskItem.CreateFromDatabase(taskId, "Original", "Description", Domain.Enums.TaskItemStatus.Pending, null, _currentUserId, _frozenTime);
         _taskRepository.Tasks.Add(task);
 
         var dto = new UpdateTaskDto("Updated Title", "Description", "InvalidStatus", null);
@@ -162,13 +147,7 @@ public class TaskServiceTests
         // Arrange
         var taskId = Guid.NewGuid();
         var anotherUserId = Guid.NewGuid();
-        var task = new TaskItem
-        {
-            Id = taskId,
-            Title = "Original",
-            UserId = anotherUserId,
-            Status = Domain.Enums.TaskItemStatus.Pending
-        };
+        var task = TaskItem.CreateFromDatabase(taskId, "Original", "Description", Domain.Enums.TaskItemStatus.Pending, null, anotherUserId, _frozenTime);
         _taskRepository.Tasks.Add(task);
 
         var dto = new UpdateTaskDto("Updated Title", "Description", "InProgress", null);
@@ -183,16 +162,10 @@ public class TaskServiceTests
     {
         // Arrange
         var taskId = Guid.NewGuid();
-        var task = new TaskItem
-        {
-            Id = taskId,
-            Title = "Original",
-            UserId = _currentUserId,
-            Status = Domain.Enums.TaskItemStatus.Pending
-        };
+        var task = TaskItem.CreateFromDatabase(taskId, "Original", "Description", Domain.Enums.TaskItemStatus.Pending, null, _currentUserId, _frozenTime);
         _taskRepository.Tasks.Add(task);
 
-        var dto = new UpdateTaskDto("Updated Title", "New Desc", "Completed", DateTime.UtcNow.AddDays(2));
+        var dto = new UpdateTaskDto("Updated Title", "New Desc", "Completed", _frozenTime.AddDays(2));
 
         // Act
         var result = await _taskService.UpdateTaskAsync(taskId, dto);

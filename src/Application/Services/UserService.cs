@@ -12,11 +12,15 @@ public class UserService
 {
     private readonly IUserRepository _userRepository;
     private readonly IJwtProvider _jwtProvider;
+    private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly IPasswordHasher _passwordHasher;
 
-    public UserService(IUserRepository userRepository, IJwtProvider jwtProvider)
+    public UserService(IUserRepository userRepository, IJwtProvider jwtProvider, IDateTimeProvider dateTimeProvider, IPasswordHasher passwordHasher)
     {
         _userRepository = userRepository;
         _jwtProvider = jwtProvider;
+        _dateTimeProvider = dateTimeProvider;
+        _passwordHasher = passwordHasher;
     }
 
     public virtual async Task<AuthResponse> RegisterAsync(RegisterRequest request)
@@ -37,16 +41,15 @@ public class UserService
             throw new ArgumentException("Email is already registered.");
         }
 
-        var passwordHash = HashPassword(request.Password);
+        var passwordHash = _passwordHasher.HashPassword(request.Password);
 
-        var user = new User
-        {
-            Id = Guid.NewGuid(),
-            Username = request.Username,
-            Email = request.Email,
-            PasswordHash = passwordHash,
-            CreatedAt = DateTime.UtcNow
-        };
+        var user = new User(
+            Guid.NewGuid(),
+            request.Username,
+            request.Email,
+            passwordHash,
+            _dateTimeProvider.UtcNow
+        );
 
         await _userRepository.AddAsync(user);
 
@@ -68,8 +71,7 @@ public class UserService
             throw new UnauthorizedAccessException("Invalid email or password.");
         }
 
-        var passwordHash = HashPassword(request.Password);
-        if (user.PasswordHash != passwordHash)
+        if (!_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
         {
             throw new UnauthorizedAccessException("Invalid email or password.");
         }
@@ -79,10 +81,5 @@ public class UserService
         return new AuthResponse(token, user.Username, user.Email);
     }
 
-    public string HashPassword(string password)
-    {
-        using var sha256 = SHA256.Create();
-        var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-        return Convert.ToBase64String(hashedBytes);
-    }
+
 }

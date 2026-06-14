@@ -4,9 +4,11 @@ using Application.DTOs;
 using Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace API.Controllers;
 
+[EnableRateLimiting("global")]
 [Authorize]
 [ApiController]
 [Route("api/tasks")]

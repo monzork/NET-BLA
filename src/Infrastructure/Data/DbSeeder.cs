@@ -2,6 +2,8 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using Application.Common.Interfaces;
+using DbUp;
 using Microsoft.Data.SqlClient;
 
 namespace Infrastructure.Data;
@@ -9,10 +11,12 @@ namespace Infrastructure.Data;
 public class DbSeeder
 {
     private readonly ISqlConnectionFactory _connectionFactory;
+    private readonly IPasswordHasher _passwordHasher;
 
-    public DbSeeder(ISqlConnectionFactory connectionFactory)
+    public DbSeeder(ISqlConnectionFactory connectionFactory, IPasswordHasher passwordHasher)
     {
         _connectionFactory = connectionFactory;
+        _passwordHasher = passwordHasher;
     }
 
     public async Task SeedAsync()
@@ -37,39 +41,25 @@ public class DbSeeder
             await createDbCmd.ExecuteNonQueryAsync();
         }
 
-        // 2. Connect to 'TaskDb' (using the default connection factory) to setup schema & seed data
+        // 2. Run DbUp migrations
+        var connectionString = _connectionFactory.CreateConnection().ConnectionString;
+        
+        var upgrader = DeployChanges.To
+            .SqlDatabase(connectionString)
+            .WithScriptsEmbeddedInAssembly(typeof(DbSeeder).Assembly)
+            .LogToConsole()
+            .Build();
+
+        var result = upgrader.PerformUpgrade();
+
+        if (!result.Successful)
+        {
+            throw new Exception("Database migration failed: " + result.Error);
+        }
+
+        // 3. Connect to 'TaskDb' (using the default connection factory) to seed data
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync();
-
-        // Ensure Tables Exist
-        using var createTablesCmd = connection.CreateCommand();
-        createTablesCmd.CommandText = @"
-            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Users]') AND type in (N'U'))
-            BEGIN
-                CREATE TABLE Users (
-                    Id UNIQUEIDENTIFIER PRIMARY KEY,
-                    Username NVARCHAR(100) NOT NULL,
-                    Email NVARCHAR(256) NOT NULL UNIQUE,
-                    PasswordHash NVARCHAR(500) NOT NULL,
-                    CreatedAt DATETIME2 NOT NULL
-                );
-            END;
-
-            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[TaskItems]') AND type in (N'U'))
-            BEGIN
-                CREATE TABLE TaskItems (
-                    Id UNIQUEIDENTIFIER PRIMARY KEY,
-                    Title NVARCHAR(200) NOT NULL,
-                    Description NVARCHAR(MAX) NULL,
-                    Status INT NOT NULL,
-                    DueDate DATETIME2 NULL,
-                    UserId UNIQUEIDENTIFIER NOT NULL,
-                    CreatedAt DATETIME2 NOT NULL,
-                    CONSTRAINT FK_TaskItems_Users FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
-                );
-            END;";
-        
-        await createTablesCmd.ExecuteNonQueryAsync();
 
         // Check if users table is empty
         using var checkCountCmd = connection.CreateCommand();
@@ -82,7 +72,7 @@ public class DbSeeder
             var adminUserId = Guid.Parse("a5c8e517-768d-4c9c-868c-d8d5d2e14631");
             var adminEmail = "admin@example.com";
             var adminUsername = "admin";
-            var adminPasswordHash = HashPassword("Password123!");
+            var adminPasswordHash = _passwordHasher.HashPassword("Password123!");
 
             using var insertUserCmd = connection.CreateCommand();
             insertUserCmd.CommandText = @"
@@ -134,10 +124,5 @@ public class DbSeeder
         }
     }
 
-    private string HashPassword(string password)
-    {
-        using var sha256 = SHA256.Create();
-        var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-        return Convert.ToBase64String(hashedBytes);
-    }
+
 }
