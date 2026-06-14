@@ -18,15 +18,17 @@ public class AuthControllerTests
     private readonly Services.MockJwtProvider _jwtProvider;
     private readonly UserService _userService;
     private readonly MockRevokedTokenRepository _revokedTokenRepository;
+    private readonly MockRefreshTokenRepository _refreshTokenRepository;
     private readonly AuthController _authController;
 
     public AuthControllerTests()
     {
         _userRepository = new Services.MockUserRepository();
         _jwtProvider = new Services.MockJwtProvider();
-        _userService = new UserService(_userRepository, _jwtProvider, new Services.MockDateTimeProvider(), new Services.MockPasswordHasher());
+        _refreshTokenRepository = new MockRefreshTokenRepository();
+        _userService = new UserService(_userRepository, _jwtProvider, new Services.MockDateTimeProvider(), new Services.MockPasswordHasher(), _refreshTokenRepository);
         _revokedTokenRepository = new MockRevokedTokenRepository();
-        _authController = new AuthController(_userService, _revokedTokenRepository);
+        _authController = new AuthController(_userService, _revokedTokenRepository, _refreshTokenRepository);
     }
 
     [Fact]
@@ -43,7 +45,8 @@ public class AuthControllerTests
         var response = Assert.IsType<AuthResponse>(okResult.Value);
         Assert.Equal("newuser", response.Username);
         Assert.Equal("newuser@example.com", response.Email);
-        Assert.Equal("mock_token_newuser", response.Token);
+        Assert.NotNull(response.Token);
+        Assert.NotNull(response.RefreshToken);
     }
 
     [Fact]
@@ -68,7 +71,31 @@ public class AuthControllerTests
         var okResult = Assert.IsType<OkObjectResult>(result);
         var response = Assert.IsType<AuthResponse>(okResult.Value);
         Assert.Equal("loginuser", response.Username);
-        Assert.Equal("mock_token_loginuser", response.Token);
+        Assert.NotNull(response.Token);
+        Assert.NotNull(response.RefreshToken);
+    }
+
+    [Fact]
+    public async Task Refresh_ShouldReturnOk_WhenTokenIsValid()
+    {
+        // Arrange
+        var user = new User(Guid.NewGuid(), "refreshuser", "refresh@example.com", "hash", DateTime.UtcNow);
+        _userRepository.Users.Add(user);
+
+        var validToken = new RefreshToken("valid_refresh_token", user.Id, DateTime.UtcNow.AddDays(1), DateTime.UtcNow);
+        _refreshTokenRepository.RefreshTokens.Add(validToken);
+
+        var request = new RefreshRequest("valid_refresh_token");
+
+        // Act
+        var result = await _authController.Refresh(request);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<AuthResponse>(okResult.Value);
+        Assert.Equal("refreshuser", response.Username);
+        Assert.Equal("refresh@example.com", response.Email);
+        Assert.NotEqual("valid_refresh_token", response.RefreshToken);
     }
 
     [Fact]
@@ -95,6 +122,31 @@ public class AuthControllerTests
         using var sha256 = System.Security.Cryptography.SHA256.Create();
         var hashedBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
         return Convert.ToBase64String(hashedBytes);
+    }
+}
+
+public class MockRefreshTokenRepository : IRefreshTokenRepository
+{
+    public List<RefreshToken> RefreshTokens { get; } = new();
+
+    public Task SaveAsync(RefreshToken token)
+    {
+        RefreshTokens.Add(token);
+        return Task.CompletedTask;
+    }
+
+    public Task<RefreshToken?> GetByTokenAsync(string token)
+    {
+        return Task.FromResult(RefreshTokens.FirstOrDefault(t => t.Token == token));
+    }
+
+    public Task RevokeAllForUserAsync(Guid userId)
+    {
+        foreach (var token in RefreshTokens.Where(t => t.UserId == userId && t.RevokedAt == null))
+        {
+            token.Revoke(DateTime.UtcNow);
+        }
+        return Task.CompletedTask;
     }
 }
 

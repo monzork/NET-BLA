@@ -17,11 +17,16 @@ public class AuthController : ControllerBase
 {
     private readonly UserService _userService;
     private readonly IRevokedTokenRepository _revokedTokenRepository;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
 
-    public AuthController(UserService userService, IRevokedTokenRepository revokedTokenRepository)
+    public AuthController(
+        UserService userService, 
+        IRevokedTokenRepository revokedTokenRepository,
+        IRefreshTokenRepository refreshTokenRepository)
     {
         _userService = userService;
         _revokedTokenRepository = revokedTokenRepository;
+        _refreshTokenRepository = refreshTokenRepository;
     }
 
     [HttpPost("register")]
@@ -36,6 +41,20 @@ public class AuthController : ControllerBase
     {
         var result = await _userService.LoginAsync(request);
         return Ok(result);
+    }
+
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
+    {
+        try
+        {
+            var result = await _userService.RefreshTokensAsync(request.RefreshToken);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { Message = ex.Message });
+        }
     }
 
     [Authorize]
@@ -66,6 +85,12 @@ public class AuthController : ControllerBase
         }
 
         await _revokedTokenRepository.RevokeAsync(token, expiryDate);
+
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (Guid.TryParse(userIdClaim, out var userId))
+        {
+            await _refreshTokenRepository.RevokeAllForUserAsync(userId);
+        }
 
         return Ok(new { Message = "Logged out successfully." });
     }

@@ -4,6 +4,7 @@ import { Observable, tap } from 'rxjs';
 
 export interface AuthResponse {
   token: string;
+  refreshToken: string;
   username: string;
   email: string;
 }
@@ -41,8 +42,25 @@ export class AuthService {
     );
   }
 
-  logout(): void {
+  refreshToken(): Observable<AuthResponse> {
+    const refreshToken = localStorage.getItem('refreshToken');
+    return this.http.post<AuthResponse>(`${this.apiUrl}/refresh`, { refreshToken }).pipe(
+      tap(res => this.handleAuthSuccess(res))
+    );
+  }
+
+  logout(): Observable<any> {
+    return this.http.post(`${this.apiUrl}/logout`, {}).pipe(
+      tap({
+        next: () => this.clearLocalStorageAndState(),
+        error: () => this.clearLocalStorageAndState()
+      })
+    );
+  }
+
+  public clearLocalStorageAndState(): void {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('username');
     localStorage.removeItem('email');
     this._currentUser.set(null);
@@ -50,6 +68,7 @@ export class AuthService {
 
   private handleAuthSuccess(res: AuthResponse): void {
     localStorage.setItem('token', res.token);
+    localStorage.setItem('refreshToken', res.refreshToken);
     localStorage.setItem('username', res.username);
     localStorage.setItem('email', res.email);
     this._currentUser.set({ username: res.username, email: res.email });

@@ -39,7 +39,7 @@ public class JwtProvider : IJwtProvider
             audience,
             claims,
             null,
-            DateTime.UtcNow.AddDays(7),
+            DateTime.UtcNow.AddMinutes(15),
             credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

@@ -76,4 +76,47 @@ public class DomainTests
 
         Assert.Equal(TaskItemStatus.Completed, task.Status);
     }
+
+    [Fact]
+    public void RefreshTokenConstructor_ShouldThrowException_WhenTokenIsBlank()
+    {
+        var now = DateTime.UtcNow;
+        Assert.Throws<ArgumentException>(() => 
+            new RefreshToken("  ", Guid.NewGuid(), now.AddDays(1), now));
+    }
+
+    [Fact]
+    public void RefreshTokenConstructor_ShouldThrowException_WhenUserIdIsEmpty()
+    {
+        var now = DateTime.UtcNow;
+        Assert.Throws<ArgumentException>(() => 
+            new RefreshToken("token", Guid.Empty, now.AddDays(1), now));
+    }
+
+    [Fact]
+    public void RefreshTokenConstructor_ShouldThrowException_WhenExpiryIsBeforeCreated()
+    {
+        var now = DateTime.UtcNow;
+        Assert.Throws<ArgumentException>(() => 
+            new RefreshToken("token", Guid.NewGuid(), now.AddMinutes(-5), now));
+    }
+
+    [Fact]
+    public void RefreshTokenIsExpired_ShouldReturnTrue_WhenExpiryDateIsPast()
+    {
+        var now = DateTime.UtcNow;
+        var token = RefreshToken.CreateFromDatabase("token", Guid.NewGuid(), now.AddMinutes(-5), now.AddDays(-1), null);
+        
+        Assert.True(token.IsExpired(now));
+        Assert.False(token.IsActive(now));
+    }
+
+    [Fact]
+    public void RefreshTokenIsActive_ShouldReturnFalse_WhenRevoked()
+    {
+        var now = DateTime.UtcNow;
+        var token = RefreshToken.CreateFromDatabase("token", Guid.NewGuid(), now.AddDays(1), now, now);
+        
+        Assert.False(token.IsActive(now));
+    }
 }

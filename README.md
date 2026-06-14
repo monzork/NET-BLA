@@ -1,6 +1,4 @@
-# Task Management System (NET-BLA)
-
-A premium, modern full-stack Task Management application featuring a .NET 10.0 Clean Architecture Web API and an Angular 21 standalone frontend styled with a stunning dark-glassmorphic theme.
+A full-stack Task Management application featuring a .NET 10.0 Clean Architecture Web API and an Angular 21 standalone frontend styled with a dark-glassmorphism theme.
 
 ---
 
@@ -35,9 +33,9 @@ A premium, modern full-stack Task Management application featuring a .NET 10.0 C
 - **API Protection & Rate Limiting**: Configured native ASP.NET Core rate-limiting middleware using a **fixed-window limiter** (10 requests/min) on auth endpoints for brute-force defense, and a **sliding-window limiter** (100 requests/min) on general CRUD routes.
 - **Custom ADO.NET Repositories**: Pure ADO.NET data access using parameterized SQL queries with `Microsoft.Data.SqlClient`—no Entity Framework, Dapper, or MediatR.
 - **Database Migrations (DbUp)**: Incremental SQL migration scripts managed and executed automatically on startup by the `DbUp` upgrade engine.
-- **Unit Testing**: Strict Test-Driven Development (TDD) coverage using xUnit (34 tests covering rich models, services, token revocation, and API controllers).
-- **UI Design**: Angular Material components paired with custom CSS for a premium dark glassmorphism feel (smooth hover glows, backdrop blurs, clean transitions).
-- **Separation of Concerns**: Strict smart (container) and dumb (presentation) component separation.
+- **Unit Testing**: Test coverage using xUnit (34 tests covering rich models, application services, token revocation, and API controllers).
+- **UI Design**: Angular Material components styled with custom CSS for a dark glassmorphism layout (backdrop blurs, subtle interactive transitions).
+- **Separation of Concerns**: Smart (container) and dumb (presentation) component separation.
 
 ---
 
@@ -58,7 +56,7 @@ A premium, modern full-stack Task Management application featuring a .NET 10.0 C
 │   │   │   │
 │   │   │   ├── services/   # AuthService (Signals) and TaskService
 │   │   │   └── ...
-│   │   └── styles.css      # Premium dark-glassmorphic styling
+│   │   └── styles.css      # Dark-glassmorphic layout styling
 │   └── package.json
 │
 ├── src/                  # ASP.NET Core Backend
@@ -134,8 +132,8 @@ dotnet test
 ## 🛡️ Architecture Highlights
 
 ### Backend Architecture
-- **Domain**: Pure domain models (`User`, `TaskItem`) and core enums (`TaskItemStatus`).
-- **Application**: Contains DTO definitions, interfaces, and core domain services (`UserService`, `TaskService`). All input and state validations occur here.
+- **Domain**: Pure domain models (`User`, `TaskItem`) and core enums (`TaskItemStatus`). Enforces core domain invariants and business rules on construction and state mutation.
+- **Application**: Contains DTO definitions, interfaces, and application services (`UserService`, `TaskService`). Responsible for workflow orchestration, request validation, and mapping security contexts.
 - **Infrastructure**: Impements data access (`TaskRepository`, `UserRepository`) with pure parameterized ADO.NET SQL queries, security tokens (`JwtProvider`), and database initialization schemas (`DbSeeder`).
 - **API**: Maps routing, consumes controllers, utilizes custom Global Exception Middleware to translate custom exceptions into correct RESTful status codes, and establishes CORS.
 
