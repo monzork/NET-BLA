@@ -97,40 +97,40 @@ public class DbSeeder
 
             await insertUserCmd.ExecuteNonQueryAsync();
 
-            // Seed some sample tasks for this user
-            using var insertTasksCmd = connection.CreateCommand();
-            insertTasksCmd.CommandText = @"
-                INSERT INTO TaskItems (Id, Title, Description, Status, DueDate, UserId, CreatedAt)
-                VALUES 
-                (@T1_Id, @T1_Title, @T1_Desc, @T1_Status, @T1_DueDate, @UserId, @CreatedAt),
-                (@T2_Id, @T2_Title, @T2_Desc, @T2_Status, @T2_DueDate, @UserId, @CreatedAt),
-                (@T3_Id, @T3_Title, @T3_Desc, @T3_Status, @T3_DueDate, @UserId, @CreatedAt)";
+            // Seed some sample tasks representing the actual steps to build this project
+            var projectTasks = new[]
+            {
+                new { Title = "Setup Solution and Projects (.NET Core)", Description = "Initialize solution and structure Domain, Application, Infrastructure, API, and Unit Test projects.", Status = 2, DueDays = -5 },
+                new { Title = "TDD Phase 1: Create Domain Entities/Enums and Application Interfaces/DTOs", Description = "Define core domain models, DTOs, and interface abstractions for task management.", Status = 2, DueDays = -4 },
+                new { Title = "TDD Phase 2: Write xUnit tests for application service validations", Description = "Write unit tests for business rules (e.g. required title, future due date, valid status).", Status = 2, DueDays = -3 },
+                new { Title = "TDD Phase 3: Implement TaskService and UserService to pass tests", Description = "Implement password hashing, validation logic, and CRUD services to pass unit tests.", Status = 2, DueDays = -3 },
+                new { Title = "Implement Infrastructure Layer (ADO.NET, connection factory, JWT generator, and Seeder)", Description = "Build connection factory, JWT token providers, database seeders, and repositories using parameterized SQL.", Status = 2, DueDays = -2 },
+                new { Title = "Implement API Layer (Controllers, Middleware, Program.cs, Dockerfile)", Description = "Build REST controllers, global exception middleware, CORS configuration, and backend containerization.", Status = 2, DueDays = -2 },
+                new { Title = "Create database script and docker-compose.yml", Description = "Create database initialization scripts and coordinate containers with docker-compose.", Status = 2, DueDays = -1 },
+                new { Title = "Run tests and verify backend compilation and execution", Description = "Compile the backend, run the test suites, and launch backend containers to verify setup.", Status = 2, DueDays = -1 },
+                new { Title = "Initialize Angular Frontend Application", Description = "Initialize Angular client with routing, theme settings, and global CSS structures.", Status = 2, DueDays = 0 },
+                new { Title = "Implement Angular Smart/Dumb Components, Services, and Interceptors", Description = "Design login/registration forms and dashboard container using Material Design and reactive state.", Status = 1, DueDays = 1 },
+                new { Title = "Perform integration testing and create walkthrough", Description = "Verify user flows in browser and document findings in walkthrough.md.", Status = 0, DueDays = 2 },
+                new { Title = "Configure single shared Git monorepo and write documentation", Description = "Unify project workspaces, stage and commit repository files, and write README.md setup guides.", Status = 0, DueDays = 3 }
+            };
 
-            insertTasksCmd.Parameters.AddWithValue("@UserId", adminUserId);
-            insertTasksCmd.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
+            foreach (var task in projectTasks)
+            {
+                using var insertTaskCmd = connection.CreateCommand();
+                insertTaskCmd.CommandText = @"
+                    INSERT INTO TaskItems (Id, Title, Description, Status, DueDate, UserId, CreatedAt)
+                    VALUES (@Id, @Title, @Description, @Status, @DueDate, @UserId, @CreatedAt)";
 
-            // Task 1: Completed
-            insertTasksCmd.Parameters.AddWithValue("@T1_Id", Guid.NewGuid());
-            insertTasksCmd.Parameters.AddWithValue("@T1_Title", "Configure local development environment");
-            insertTasksCmd.Parameters.AddWithValue("@T1_Desc", "Set up Docker containers, database connections, and environment settings.");
-            insertTasksCmd.Parameters.AddWithValue("@T1_Status", 2); // Completed
-            insertTasksCmd.Parameters.AddWithValue("@T1_DueDate", DateTime.UtcNow.AddDays(-1));
+                insertTaskCmd.Parameters.AddWithValue("@Id", Guid.NewGuid());
+                insertTaskCmd.Parameters.AddWithValue("@Title", task.Title);
+                insertTaskCmd.Parameters.AddWithValue("@Description", task.Description);
+                insertTaskCmd.Parameters.AddWithValue("@Status", task.Status);
+                insertTaskCmd.Parameters.AddWithValue("@DueDate", DateTime.UtcNow.AddDays(task.DueDays));
+                insertTaskCmd.Parameters.AddWithValue("@UserId", adminUserId);
+                insertTaskCmd.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
 
-            // Task 2: InProgress
-            insertTasksCmd.Parameters.AddWithValue("@T2_Id", Guid.NewGuid());
-            insertTasksCmd.Parameters.AddWithValue("@T2_Title", "Implement Clean Architecture backend");
-            insertTasksCmd.Parameters.AddWithValue("@T2_Desc", "Create Domain, Application, Infrastructure, and API layers with ADO.NET and JWT.");
-            insertTasksCmd.Parameters.AddWithValue("@T2_Status", 1); // InProgress
-            insertTasksCmd.Parameters.AddWithValue("@T2_DueDate", DateTime.UtcNow.AddDays(2));
-
-            // Task 3: Pending
-            insertTasksCmd.Parameters.AddWithValue("@T3_Id", Guid.NewGuid());
-            insertTasksCmd.Parameters.AddWithValue("@T3_Title", "Build Angular 20 Standalone frontend");
-            insertTasksCmd.Parameters.AddWithValue("@T3_Desc", "Create modern presentation component dashboard and forms with Angular Material.");
-            insertTasksCmd.Parameters.AddWithValue("@T3_Status", 0); // Pending
-            insertTasksCmd.Parameters.AddWithValue("@T3_DueDate", DateTime.UtcNow.AddDays(7));
-
-            await insertTasksCmd.ExecuteNonQueryAsync();
+                await insertTaskCmd.ExecuteNonQueryAsync();
+            }
         }
     }
 
