@@ -166,6 +166,33 @@ import { MatToolbarModule } from '@angular/material/toolbar';
       margin-bottom: 24px;
       text-align: center;
     }
+    @media (max-width: 768px) {
+      .dashboard-navbar {
+        padding: 0 16px;
+      }
+      .dashboard-content {
+        padding: 24px 16px;
+      }
+      .content-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+      }
+      .new-task-btn {
+        width: 100%;
+      }
+    }
+    @media (max-width: 480px) {
+      .username-display {
+        display: none;
+      }
+      .user-profile {
+        margin-right: 8px;
+      }
+      .welcome-title {
+        font-size: 24px;
+      }
+    }
   `]
 })
 export class TaskDashboardContainer implements OnInit {

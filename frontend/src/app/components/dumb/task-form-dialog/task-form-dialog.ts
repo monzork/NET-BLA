@@ -123,8 +123,18 @@ export function futureDateValidator(): ValidatorFn {
       background: rgba(255, 255, 255, 0.05) !important;
       color: rgba(255, 255, 255, 0.3) !important;
       box-shadow: none !important;
+      border: none;
     }
-  `]
+    @media (max-width: 480px) {
+      .row {
+        flex-direction: column;
+        gap: 0;
+      }
+      .dialog-content {
+        min-width: unset !important;
+        width: 100%;
+      }
+    }`]
 })
 export class TaskFormDialog implements OnInit {
   protected readonly taskForm: FormGroup;

@@ -33,13 +33,6 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
         </div>
 
         <app-login-form *ngIf="!isLoading" (submitForm)="onLogin($event)"></app-login-form>
-
-        <div class="auth-footer">
-          <p class="subtle-text">
-            Don't have an account? 
-            <a routerLink="/register" class="auth-link">Create Account</a>
-          </p>
-        </div>
       </div>
     </div>
   `,
@@ -84,20 +77,15 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
       justify-content: center;
       padding: 20px 0;
     }
-    .auth-footer {
-      text-align: center;
-      font-size: 14px;
-      margin-top: 12px;
-    }
-    .auth-link {
-      color: #c084fc;
-      text-decoration: none;
-      font-weight: 600;
-      transition: color 0.2s ease;
-    }
-    .auth-link:hover {
-      color: #e879f9;
-      text-decoration: underline;
+
+    @media (max-width: 480px) {
+      .auth-card-wrapper {
+        padding: 24px 16px;
+        gap: 16px;
+      }
+      .auth-header h1 {
+        font-size: 28px;
+      }
     }
   `]
 })

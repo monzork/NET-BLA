@@ -219,6 +219,29 @@ import { FormsModule } from '@angular/forms';
       color: #64748b;
       margin-bottom: 16px;
     }
+    @media (max-width: 600px) {
+      .filters-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+      }
+      .search-field {
+        max-width: 100%;
+        width: 100%;
+      }
+      .filter-chips {
+        width: 100%;
+      }
+    }
+    @media (max-width: 480px) {
+      .tasks-grid {
+        grid-template-columns: 1fr;
+      }
+      .task-card {
+        height: auto;
+        min-height: 200px;
+      }
+    }
   `]
 })
 export class TaskList {
