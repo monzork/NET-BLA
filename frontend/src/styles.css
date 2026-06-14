@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+  background: radial-gradient(circle at 10% 20%, rgb(15, 12, 30) 0%, rgb(24, 18, 54) 90.2%);
+  color: #f1f1f7;
+  overflow-x: hidden;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 12, 30, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(138, 92, 246, 0.4);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(138, 92, 246, 0.7);
+}
+
+/* Glassmorphism Classes */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel:hover {
+  border-color: rgba(138, 92, 246, 0.2);
+  box-shadow: 0 12px 40px 0 rgba(138, 92, 246, 0.15);
+}
+
+/* Typography and utility styles */
+.gradient-text {
+  background: linear-gradient(135deg, #a78bfa 0%, #ec4899 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+}
+
+.subtle-text {
+  color: #94a3b8;
+}
+
+/* Material Override for Premium Look */
+.mdc-text-field--filled:not(.mdc-text-field--disabled) {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+.mdc-text-field--filled:not(.mdc-text-field--disabled) .mdc-floating-label {
+  color: #94a3b8 !important;
+}
+
+.mdc-text-field--filled:not(.mdc-text-field--disabled) .mdc-text-field__input {
+  color: #f1f1f7 !important;
+}
+
+.mat-mdc-card {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  color: #f1f1f7 !important;
+  backdrop-filter: blur(12px);
+}
+
+.mat-mdc-dialog-container .mdc-dialog__surface {
+  background: rgb(24, 18, 54) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #f1f1f7 !important;
+  border-radius: 20px !important;
+}
