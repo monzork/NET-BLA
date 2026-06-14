@@ -42,13 +42,15 @@ public class TasksControllerTests
         _taskRepository.Tasks.Add(otherUserTask);
 
         // Act
-        var result = await _tasksController.GetAll();
+        var result = await _tasksController.GetAll(null, null, null, null);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result);
-        var tasks = Assert.IsAssignableFrom<IEnumerable<TaskDto>>(okResult.Value);
-        Assert.Equal(2, tasks.Count());
-        Assert.All(tasks, t => Assert.Equal(_currentUserId, t.UserId));
+        var pagedResult = Assert.IsType<PagedTasksDto>(okResult.Value);
+        Assert.Equal(2, pagedResult.Items.Count());
+        Assert.All(pagedResult.Items, t => Assert.Equal(_currentUserId, t.UserId));
+        Assert.Null(pagedResult.NextCursor);
+        Assert.False(pagedResult.HasMore);
     }
 
     [Fact]

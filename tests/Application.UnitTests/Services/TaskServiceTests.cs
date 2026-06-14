@@ -181,6 +181,52 @@ public class TaskServiceTests
         Assert.Equal(dto.Title, savedTask.Title);
         Assert.Equal(Domain.Enums.TaskItemStatus.Completed, savedTask.Status);
     }
+
+    [Fact]
+    public async Task GetTasksPaged_ShouldReturnAllTasks_WhenLimitIsNull()
+    {
+        // Arrange
+        var task1 = TaskItem.CreateFromDatabase(Guid.NewGuid(), "Task 1", "", TaskItemStatus.Pending, null, _currentUserId, _frozenTime.AddHours(-1));
+        var task2 = TaskItem.CreateFromDatabase(Guid.NewGuid(), "Task 2", "", TaskItemStatus.InProgress, null, _currentUserId, _frozenTime);
+        _taskRepository.Tasks.Add(task1);
+        _taskRepository.Tasks.Add(task2);
+
+        // Act
+        var result = await _taskService.GetTasksPagedForCurrentUserAsync(null, null, null, null);
+
+        // Assert
+        Assert.Equal(2, result.Items.Count());
+        Assert.Null(result.NextCursor);
+        Assert.False(result.HasMore);
+    }
+
+    [Fact]
+    public async Task GetTasksPaged_ShouldReturnPagedTasks_WhenLimitIsSet()
+    {
+        // Arrange
+        var task1 = TaskItem.CreateFromDatabase(Guid.NewGuid(), "Task 1", "", TaskItemStatus.Pending, null, _currentUserId, _frozenTime.AddHours(-2));
+        var task2 = TaskItem.CreateFromDatabase(Guid.NewGuid(), "Task 2", "", TaskItemStatus.InProgress, null, _currentUserId, _frozenTime.AddHours(-1));
+        var task3 = TaskItem.CreateFromDatabase(Guid.NewGuid(), "Task 3", "", TaskItemStatus.Completed, null, _currentUserId, _frozenTime);
+        _taskRepository.Tasks.Add(task1);
+        _taskRepository.Tasks.Add(task2);
+        _taskRepository.Tasks.Add(task3);
+
+        // Act - Page 1
+        var page1 = await _taskService.GetTasksPagedForCurrentUserAsync(2, null, null, null);
+
+        // Assert Page 1
+        Assert.Equal(2, page1.Items.Count());
+        Assert.True(page1.HasMore);
+        Assert.NotNull(page1.NextCursor);
+
+        // Act - Page 2
+        var page2 = await _taskService.GetTasksPagedForCurrentUserAsync(2, page1.NextCursor, null, null);
+
+        // Assert Page 2
+        Assert.Single(page2.Items);
+        Assert.False(page2.HasMore);
+        Assert.Null(page2.NextCursor);
+    }
 }
 
 #region Mocks
@@ -197,6 +243,44 @@ public class MockTaskRepository : ITaskRepository
     public Task<IEnumerable<TaskItem>> GetAllByUserIdAsync(Guid userId)
     {
         return Task.FromResult<IEnumerable<TaskItem>>(Tasks.Where(t => t.UserId == userId).ToList());
+    }
+
+    public Task<IEnumerable<TaskItem>> GetPagedByUserIdAsync(
+        Guid userId,
+        int? limit,
+        string? status,
+        string? searchQuery,
+        DateTime? cursorCreatedAt,
+        Guid? cursorId)
+    {
+        var query = Tasks.Where(t => t.UserId == userId);
+
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<Domain.Enums.TaskItemStatus>(status, true, out var parsedStatus))
+        {
+            query = query.Where(t => t.Status == parsedStatus);
+        }
+
+        if (!string.IsNullOrEmpty(searchQuery))
+        {
+            var sq = searchQuery.ToLowerInvariant();
+            query = query.Where(t => t.Title.ToLowerInvariant().Contains(sq) || t.Description.ToLowerInvariant().Contains(sq));
+        }
+
+        query = query.OrderByDescending(t => t.CreatedAt).ThenByDescending(t => t.Id);
+
+        if (cursorCreatedAt.HasValue && cursorId.HasValue)
+        {
+            query = query.Where(t => 
+                t.CreatedAt < cursorCreatedAt.Value 
+                || (t.CreatedAt == cursorCreatedAt.Value && t.Id.CompareTo(cursorId.Value) < 0));
+        }
+
+        if (limit.HasValue)
+        {
+            query = query.Take(limit.Value);
+        }
+
+        return Task.FromResult<IEnumerable<TaskItem>>(query.ToList());
     }
 
     public Task<TaskItem?> GetByIdAsync(Guid id)

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, signal, computed } from '@angular/core';
+import { Component, EventEmitter, Input, Output, signal, computed, ViewChild, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TaskDto } from '../../../services/task.service';
 import { FormsModule } from '@angular/forms';
 
@@ -22,6 +23,7 @@ import { FormsModule } from '@angular/forms';
     MatTooltipModule,
     MatInputModule,
     MatFormFieldModule,
+    MatProgressSpinnerModule,
     FormsModule
   ],
   template: `
@@ -74,6 +76,13 @@ import { FormsModule } from '@angular/forms';
             </button>
           </mat-card-actions>
         </mat-card>
+      </div>
+
+      <div #scrollAnchor class="scroll-anchor" [style.display]="hasMore ? 'block' : 'none'">
+        <div class="loading-more-spinner" *ngIf="isLoadingMore">
+          <mat-spinner diameter="30"></mat-spinner>
+          <span class="subtle-text">Loading more tasks...</span>
+        </div>
       </div>
 
       <ng-template #noTasks>
@@ -242,48 +251,78 @@ import { FormsModule } from '@angular/forms';
         min-height: 200px;
       }
     }
+    .scroll-anchor {
+      padding: 24px 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+    }
+    .loading-more-spinner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #cbd5e1;
+    }
   `]
 })
-export class TaskList {
+export class TaskList implements AfterViewInit, OnDestroy {
   @Input() set tasks(value: TaskDto[]) {
     this._tasks.set(value);
   }
+  @Input() hasMore = false;
+  @Input() isLoadingMore = false;
+
   @Output() toggleStatus = new EventEmitter<{ task: TaskDto, newStatus: string }>();
   @Output() editTask = new EventEmitter<TaskDto>();
   @Output() deleteTask = new EventEmitter<string>();
+  @Output() loadMore = new EventEmitter<void>();
+  @Output() filterChanged = new EventEmitter<{ status: string, search: string }>();
+
+  @ViewChild('scrollAnchor') scrollAnchor!: ElementRef<HTMLDivElement>;
 
   private readonly _tasks = signal<TaskDto[]>([]);
   protected searchQuery = '';
-  protected activeFilter = signal<string>('all');
-  protected searchFilter = signal<string>('');
+  protected activeFilter = 'all';
+  private observer?: IntersectionObserver;
 
-  protected filteredTasks = computed(() => {
-    let list = this._tasks();
-    
-    // Status Filter
-    const filter = this.activeFilter();
-    if (filter !== 'all') {
-      list = list.filter(t => t.status.toLowerCase() === filter.toLowerCase());
+  protected readonly filteredTasks = computed(() => this._tasks());
+
+  ngAfterViewInit(): void {
+    this.setupIntersectionObserver();
+  }
+
+  ngOnDestroy(): void {
+    if (this.observer) {
+      this.observer.disconnect();
     }
+  }
 
-    // Search Query Filter
-    const query = this.searchFilter().toLowerCase().trim();
-    if (query) {
-      list = list.filter(t => 
-        t.title.toLowerCase().includes(query) || 
-        t.description.toLowerCase().includes(query)
-      );
+  private setupIntersectionObserver(): void {
+    this.observer = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+      if (entry.isIntersecting && this.hasMore && !this.isLoadingMore) {
+        if (window.innerWidth <= 768) {
+          this.loadMore.emit();
+        }
+      }
+    }, {
+      rootMargin: '100px'
+    });
+
+    if (this.scrollAnchor) {
+      this.observer.observe(this.scrollAnchor.nativeElement);
     }
-
-    return list;
-  });
+  }
 
   protected onFilterChange(value: string | undefined): void {
-    this.activeFilter.set(value || 'all');
+    this.activeFilter = value || 'all';
+    this.filterChanged.emit({ status: this.activeFilter, search: this.searchQuery });
   }
 
   protected onSearchChange(value: string): void {
-    this.searchFilter.set(value);
+    this.searchQuery = value;
+    this.filterChanged.emit({ status: this.activeFilter, search: this.searchQuery });
   }
 
   protected getStatusLabel(status: string): string {

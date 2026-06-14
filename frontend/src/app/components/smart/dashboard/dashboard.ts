@@ -60,6 +60,10 @@ import { MatToolbarModule } from '@angular/material/toolbar';
         <app-task-list 
           *ngIf="!isLoading()" 
           [tasks]="tasks()" 
+          [hasMore]="hasMore()"
+          [isLoadingMore]="isLoadingMore()"
+          (loadMore)="onLoadMore()"
+          (filterChanged)="onFilterChanged($event)"
           (toggleStatus)="onToggleStatus($event)"
           (editTask)="openEditDialog($event)"
           (deleteTask)="onDeleteTask($event)">
@@ -205,6 +209,12 @@ export class TaskDashboardContainer implements OnInit {
   protected readonly tasks = signal<TaskDto[]>([]);
   protected readonly isLoading = signal<boolean>(false);
   protected readonly errorMessage = signal<string>('');
+  protected readonly hasMore = signal<boolean>(false);
+  protected readonly isLoadingMore = signal<boolean>(false);
+
+  private nextCursor: string | null = null;
+  private activeStatus: string | null = null;
+  private activeSearchQuery: string | null = null;
 
   constructor() {}
 
@@ -223,13 +233,21 @@ export class TaskDashboardContainer implements OnInit {
     });
   }
 
+  private getLimit(): number | null {
+    return window.innerWidth <= 768 ? 10 : null;
+  }
+
   private loadTasks(): void {
     this.isLoading.set(true);
     this.errorMessage.set('');
+    this.nextCursor = null;
 
-    this.taskService.getAll().subscribe({
+    const limit = this.getLimit();
+    this.taskService.getAll(limit, null, this.activeStatus, this.activeSearchQuery).subscribe({
       next: (data) => {
-        this.tasks.set(data);
+        this.tasks.set(data.items);
+        this.nextCursor = data.nextCursor;
+        this.hasMore.set(data.hasMore);
         this.isLoading.set(false);
       },
       error: () => {
@@ -237,6 +255,32 @@ export class TaskDashboardContainer implements OnInit {
         this.errorMessage.set('Could not load tasks. Please verify your server connection.');
       }
     });
+  }
+
+  protected onLoadMore(): void {
+    if (this.isLoadingMore() || !this.hasMore() || !this.nextCursor) return;
+
+    this.isLoadingMore.set(true);
+    const limit = this.getLimit();
+
+    this.taskService.getAll(limit, this.nextCursor, this.activeStatus, this.activeSearchQuery).subscribe({
+      next: (data) => {
+        this.tasks.update(current => [...current, ...data.items]);
+        this.nextCursor = data.nextCursor;
+        this.hasMore.set(data.hasMore);
+        this.isLoadingMore.set(false);
+      },
+      error: () => {
+        this.isLoadingMore.set(false);
+        this.errorMessage.set('Failed to load more tasks.');
+      }
+    });
+  }
+
+  protected onFilterChanged(filters: { status: string, search: string }): void {
+    this.activeStatus = filters.status;
+    this.activeSearchQuery = filters.search;
+    this.loadTasks();
   }
 
   protected openCreateDialog(): void {

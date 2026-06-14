@@ -22,9 +22,13 @@ public class TasksController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll(
+        [FromQuery] int? limit = null,
+        [FromQuery] string? cursor = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? searchQuery = null)
     {
-        var result = await _taskService.GetTasksForCurrentUserAsync();
+        var result = await _taskService.GetTasksPagedForCurrentUserAsync(limit, cursor, status, searchQuery);
         return Ok(result);
     }
 

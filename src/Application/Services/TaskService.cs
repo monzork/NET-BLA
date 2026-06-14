@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Application.Common.Interfaces;
 using Application.DTOs;
@@ -27,6 +28,68 @@ public class TaskService
         var userId = GetCurrentUserIdOrThrow();
         var tasks = await _taskRepository.GetAllByUserIdAsync(userId);
         return tasks.Select(MapToDto);
+    }
+
+    public virtual async Task<PagedTasksDto> GetTasksPagedForCurrentUserAsync(
+        int? limit,
+        string? cursor,
+        string? status,
+        string? searchQuery)
+    {
+        var userId = GetCurrentUserIdOrThrow();
+
+        DateTime? cursorCreatedAt = null;
+        Guid? cursorId = null;
+
+        if (!string.IsNullOrEmpty(cursor))
+        {
+            try
+            {
+                var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(cursor));
+                var parts = decoded.Split('|');
+                if (parts.Length == 2)
+                {
+                    cursorCreatedAt = DateTime.Parse(parts[0], null, System.Globalization.DateTimeStyles.RoundtripKind);
+                    cursorId = Guid.Parse(parts[1]);
+                }
+            }
+            catch
+            {
+                // Ignore malformed cursors
+            }
+        }
+
+        int? queryLimit = limit.HasValue ? limit.Value + 1 : (int?)null;
+
+        var items = await _taskRepository.GetPagedByUserIdAsync(
+            userId,
+            queryLimit,
+            status,
+            searchQuery,
+            cursorCreatedAt,
+            cursorId);
+
+        var itemList = items.ToList();
+        bool hasMore = false;
+
+        if (limit.HasValue && itemList.Count > limit.Value)
+        {
+            hasMore = true;
+            itemList.RemoveAt(limit.Value);
+        }
+
+        string? nextCursor = null;
+        if (hasMore && itemList.Any())
+        {
+            var lastItem = itemList.Last();
+            var cursorStr = $"{lastItem.CreatedAt.ToString("o")}|{lastItem.Id}";
+            nextCursor = Convert.ToBase64String(Encoding.UTF8.GetBytes(cursorStr));
+        }
+
+        return new PagedTasksDto(
+            itemList.Select(MapToDto),
+            nextCursor,
+            hasMore);
     }
 
     public virtual async Task<TaskDto?> GetTaskByIdAsync(Guid id)

@@ -53,6 +53,64 @@ public class TaskRepository : ITaskRepository
         return tasks;
     }
 
+    public async Task<IEnumerable<TaskItem>> GetPagedByUserIdAsync(
+        Guid userId,
+        int? limit,
+        string? status,
+        string? searchQuery,
+        DateTime? cursorCreatedAt,
+        Guid? cursorId)
+    {
+        var tasks = new List<TaskItem>();
+        using var connection = _connectionFactory.CreateConnection();
+        using var command = connection.CreateCommand();
+
+        var selectTop = limit.HasValue ? "SELECT TOP (@Limit)" : "SELECT";
+        var sql = $"{selectTop} Id, Title, Description, Status, DueDate, UserId, CreatedAt FROM TaskItems WHERE UserId = @UserId";
+
+        command.Parameters.AddWithValue("@UserId", userId);
+
+        if (limit.HasValue)
+        {
+            command.Parameters.AddWithValue("@Limit", limit.Value);
+        }
+
+        // Apply Status Filter
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<TaskItemStatus>(status, true, out var parsedStatus))
+        {
+            sql += " AND Status = @Status";
+            command.Parameters.AddWithValue("@Status", (int)parsedStatus);
+        }
+
+        // Apply Search Filter
+        if (!string.IsNullOrEmpty(searchQuery))
+        {
+            sql += " AND (Title LIKE @SearchQueryLike OR Description LIKE @SearchQueryLike)";
+            command.Parameters.AddWithValue("@SearchQueryLike", $"%{searchQuery}%");
+        }
+
+        // Apply Cursor Filter
+        if (cursorCreatedAt.HasValue && cursorId.HasValue)
+        {
+            sql += " AND (CreatedAt < @CursorCreatedAt OR (CreatedAt = @CursorCreatedAt AND Id < @CursorId))";
+            command.Parameters.AddWithValue("@CursorCreatedAt", cursorCreatedAt.Value);
+            command.Parameters.AddWithValue("@CursorId", cursorId.Value);
+        }
+
+        sql += " ORDER BY CreatedAt DESC, Id DESC";
+
+        command.CommandText = sql;
+
+        await connection.OpenAsync();
+        using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            tasks.Add(MapReaderToTask(reader));
+        }
+
+        return tasks;
+    }
+
     public async Task<TaskItem?> GetByIdAsync(Guid id)
     {
         using var connection = _connectionFactory.CreateConnection();

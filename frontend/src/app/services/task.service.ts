@@ -12,6 +12,12 @@ export interface TaskDto {
   createdAt: string;
 }
 
+export interface PagedTasksDto {
+  items: TaskDto[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 export interface CreateTaskDto {
   title: string;
   description: string;
@@ -34,8 +40,18 @@ export class TaskService {
 
   constructor(private http: HttpClient) {}
 
-  getAll(): Observable<TaskDto[]> {
-    return this.http.get<TaskDto[]>(this.apiUrl);
+  getAll(
+    limit: number | null = null,
+    cursor: string | null = null,
+    status: string | null = null,
+    searchQuery: string | null = null
+  ): Observable<PagedTasksDto> {
+    const params: any = {};
+    if (limit !== null) params.limit = limit.toString();
+    if (cursor) params.cursor = cursor;
+    if (status && status !== 'all') params.status = status;
+    if (searchQuery) params.searchQuery = searchQuery;
+    return this.http.get<PagedTasksDto>(this.apiUrl, { params });
   }
 
   getById(id: string): Observable<TaskDto> {
