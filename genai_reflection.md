@@ -96,6 +96,29 @@ The following key modifications and design improvements were introduced over the
   - Introduced a parameterized database-backed token blocklist repository (`IRevokedTokenRepository`).
   - Intercepted token validation events inside `Program.cs` via ASP.NET Core `JwtBearerEvents.OnTokenValidated` to verify the request token is not blocklisted.
 
+### 6. JWT Refresh Token Rotation (RTR) & Breach Detection
+* **The Issue**: Relying entirely on stateless access tokens forces users to re-authenticate frequently. However, long-lived refresh tokens present a major risk if stolen.
+* **The Solution**:
+  - Implemented **Refresh Token Rotation (RTR)** where a new refresh token is issued and the old one is revoked upon each refresh.
+  - Implemented **Replay Attack Breach Detection**: If a client attempts to execute renewal using a previously-revoked refresh token, it indicates a security compromise. The system immediately revokes all active refresh tokens for the associated user, locking out all active sessions instantly.
+
+### 7. Cursor-Based Pagination & Viewport-Specific Loading
+* **The Issue**: Traditional offset-based paging (`page`/`pageSize` with `OFFSET ... FETCH`) causes performance degradation at scale and layout displacement (duplicate/skipped cards) if tasks are created/deleted while scrolling.
+* **The Solution**:
+  - Implemented cursor-based pagination querying composite cursors `(CreatedAt DESC, Id DESC)` using parameterized SQL TOP filters.
+  - Created a hybrid UI: Desktop loads all matching tasks at once (no limit), while mobile uses an `IntersectionObserver` scroll anchor to trigger infinite scroll page additions of 10 items.
+  - Migrated search and status filters to the database query level to ensure filtering evaluates the entire dataset.
+
+### 8. Search Input Debouncing & Input Focus Retention
+* **The Issue**: Binding a global loading spinner to `*ngIf` destroyed and re-mounted the `<app-task-list>` component. This caused the search input to lose focus on every single keypress.
+* **The Solution**:
+  - Refactored loading states to distinguish between `isInitialLoading` (first render) and subsequent loads, preserving component focus.
+  - Implemented a `300ms` debounce using an RxJS `Subject` on search input changes to prevent request storms and race conditions.
+
+### 9. Registration UI Flow Removal
+* **The Issue**: An open public user registration flow was not desired for this authenticated project workspace.
+* **The Solution**: Removed registration routes, deleted unused component files, and restricted access to pre-seeded admin credentials.
+
 ---
 
 ## 🏛️ Clean Architecture & DDD Compliance Analysis
@@ -127,4 +150,4 @@ AI-generated code was not accepted solely because it compiled. Business requirem
 * **Authorization checks & Repository behavior**: Mocking repository structures to verify queries return correct matching parameters.
 * **API controller endpoint responses**: Inspecting returned action results and status codes.
 
-Only code that passed the updated test suite (34 tests total, all passing with zero warnings or errors) was integrated into the final codebase.
+Only code that passed the updated test suite (46 tests total, all passing with zero warnings or errors) was integrated into the final codebase.

@@ -23,18 +23,21 @@ A full-stack Task Management application featuring a .NET 10.0 Clean Architectur
 
 ## 🚀 Key Features
 
-- **Authentication & Security**: User registration, login utilizing secure **BCrypt password hashing** (`BCrypt.Net-Next`), JWT bearer auth, and **JWT Logout Session Revocation (Blocklist)** to invalidate tokens on logout.
-- **Rich Domain Model (DDD)**: Implements encapsulated domain models (`User`, `TaskItem`) with private properties/setters, constructor validation rules, and state mutations managed via explicit domain methods.
+- **Authentication & Security**: Secure login utilizing **BCrypt password hashing** (`BCrypt.Net-Next`) and JWT token authentication.
+- **Refresh Token Rotation (RTR)**: Long-lived session refresh tokens (7 days) paired with short-lived access tokens (15 minutes). Implements strict rotation where old refresh tokens are invalidated on renewal, and **breach detection** immediately revokes all user sessions if a replayed refresh token is detected.
+- **JWT Logout Session Revocation (Blocklist)**: Explicit logout revokes active refresh tokens and blocklists the current access token.
+- **Rich Domain Model (DDD)**: Encapsulated domain models (`User`, `TaskItem`, `RefreshToken`) with private setters, constructor validation rules, and explicit mutation methods protecting domain invariants.
+- **Cursor-Based Pagination**: Dynamic cursor-based pagination (`(CreatedAt, Id)` composite cursors) to fetch tasks efficiently and prevent skipped or duplicate items during active task modifications.
+- **Viewport-Specific Paging UX**:
+  - **Desktop**: Loads and renders all matching tasks at once (un-paginated).
+  - **Mobile**: Loads tasks in batches of 10 and triggers an automatic **Infinite Scroll** via `IntersectionObserver` as the user reaches the bottom.
+- **Search Input Debouncing**: Implements a `300ms` typing debounce utilizing an RxJS `Subject` to optimize database traffic and avoid asynchronous API race conditions.
 - **Task Management**: Full CRUD operations for TaskItems.
-- **Business Rule Validations**:
-  - Task Title is required.
-  - Task DueDate cannot be in the past (validated with mockable `IDateTimeProvider` abstractions).
-  - Status must be restricted to `Pending`, `InProgress`, or `Completed`.
-- **API Protection & Rate Limiting**: Configured native ASP.NET Core rate-limiting middleware using a **fixed-window limiter** (10 requests/min) on auth endpoints for brute-force defense, and a **sliding-window limiter** (100 requests/min) on general CRUD routes.
+- **API Protection & Rate Limiting**: Native ASP.NET Core rate-limiting middleware featuring a **fixed-window limiter** (10 requests/min) on auth endpoints and a **sliding-window limiter** (100 requests/min) on general CRUD routes.
 - **Custom ADO.NET Repositories**: Pure ADO.NET data access using parameterized SQL queries with `Microsoft.Data.SqlClient`—no Entity Framework, Dapper, or MediatR.
-- **Database Migrations (DbUp)**: Incremental SQL migration scripts managed and executed automatically on startup by the `DbUp` upgrade engine.
-- **Unit Testing**: Test coverage using xUnit (34 tests covering rich models, application services, token revocation, and API controllers).
-- **UI Design**: Angular Material components styled with custom CSS for a dark glassmorphism layout (backdrop blurs, subtle interactive transitions).
+- **Database Migrations (DbUp)**: Incremental SQL migration scripts executed automatically on startup.
+- **Unit Testing**: Complete test coverage using xUnit (**46 tests** covering domain models, application services, token rotation breach checks, and API controllers).
+- **UI Design**: Angular Material components styled with dark glassmorphism layouts, full layout responsiveness, and viewport optimization down to `320px` width.
 - **Separation of Concerns**: Smart (container) and dumb (presentation) component separation.
 
 ---
@@ -113,7 +116,7 @@ You can use the seeded administrator account to immediately log in and manage ta
 
 ## 🧪 Running Tests
 
-The application features **34 unit tests** verifying user password hashes, domain entity constructor invariants, task-item validation rules, token revocation repository checks, and REST API controller CRUD/Auth endpoints.
+The application features **46 unit tests** verifying user password hashes, domain entity constructor invariants, task-item validation rules, token rotation breach checks, token revocation repository checks, and REST API controller CRUD/Auth endpoints.
 
 ### Method 1: Running in Docker Container (Recommended)
 Because the test project tests API controllers, it requires the ASP.NET Core 10.0 runtime (`Microsoft.AspNetCore.App`). If you do not have the preview ASP.NET Core 10.0 runtime installed locally on your host machine, you can run the tests instantly inside the .NET 10.0 SDK container:
