@@ -53,12 +53,12 @@ import { MatToolbarModule } from '@angular/material/toolbar';
           {{errorMessage()}}
         </div>
 
-        <div class="spinner-wrapper" *ngIf="isLoading()">
+        <div class="spinner-wrapper" *ngIf="isInitialLoading()">
           <mat-spinner diameter="50"></mat-spinner>
         </div>
 
         <app-task-list 
-          *ngIf="!isLoading()" 
+          *ngIf="!isInitialLoading()" 
           [tasks]="tasks()" 
           [hasMore]="hasMore()"
           [isLoadingMore]="isLoadingMore()"
@@ -211,6 +211,7 @@ export class TaskDashboardContainer implements OnInit {
   protected readonly errorMessage = signal<string>('');
   protected readonly hasMore = signal<boolean>(false);
   protected readonly isLoadingMore = signal<boolean>(false);
+  protected readonly isInitialLoading = signal<boolean>(true);
 
   private nextCursor: string | null = null;
   private activeStatus: string | null = null;
@@ -249,9 +250,11 @@ export class TaskDashboardContainer implements OnInit {
         this.nextCursor = data.nextCursor;
         this.hasMore.set(data.hasMore);
         this.isLoading.set(false);
+        this.isInitialLoading.set(false);
       },
       error: () => {
         this.isLoading.set(false);
+        this.isInitialLoading.set(false);
         this.errorMessage.set('Could not load tasks. Please verify your server connection.');
       }
     });

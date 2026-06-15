@@ -10,6 +10,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TaskDto } from '../../../services/task.service';
 import { FormsModule } from '@angular/forms';
+import { Subject, Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 @Component({
   selector: 'app-task-list',
@@ -285,8 +287,19 @@ export class TaskList implements AfterViewInit, OnDestroy {
   protected searchQuery = '';
   protected activeFilter = 'all';
   private observer?: IntersectionObserver;
+  private readonly searchSubject = new Subject<string>();
+  private searchSubscription?: Subscription;
 
   protected readonly filteredTasks = computed(() => this._tasks());
+
+  constructor() {
+    this.searchSubscription = this.searchSubject.pipe(
+      debounceTime(300),
+      distinctUntilChanged()
+    ).subscribe(value => {
+      this.filterChanged.emit({ status: this.activeFilter, search: value });
+    });
+  }
 
   ngAfterViewInit(): void {
     this.setupIntersectionObserver();
@@ -295,6 +308,9 @@ export class TaskList implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.observer) {
       this.observer.disconnect();
+    }
+    if (this.searchSubscription) {
+      this.searchSubscription.unsubscribe();
     }
   }
 
@@ -322,7 +338,7 @@ export class TaskList implements AfterViewInit, OnDestroy {
 
   protected onSearchChange(value: string): void {
     this.searchQuery = value;
-    this.filterChanged.emit({ status: this.activeFilter, search: this.searchQuery });
+    this.searchSubject.next(value);
   }
 
   protected getStatusLabel(status: string): string {
