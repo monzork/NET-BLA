@@ -112,6 +112,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
     .search-field {
       flex-grow: 1;
       max-width: 400px;
+      margin-right: 24px;
     }
     ::ng-deep .search-field .mat-mdc-text-field-wrapper {
       background-color: rgba(255, 255, 255, 0.02) !important;
@@ -239,6 +240,8 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
       .search-field {
         max-width: 100%;
         width: 100%;
+        margin-right: 0;
+        margin-bottom: 8px;
       }
       .filter-chips {
         width: 100%;
