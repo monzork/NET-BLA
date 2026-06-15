@@ -46,7 +46,11 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
       </div>
 
       <div class="tasks-grid" *ngIf="filteredTasks().length > 0; else noTasks">
-        <mat-card *ngFor="let task of filteredTasks()" class="task-card glass-panel" [ngClass]="task.status.toLowerCase()">
+        <mat-card *ngFor="let task of filteredTasks()" class="task-card glass-panel" [ngClass]="task.status.toLowerCase()" (click)="onCardClick(task)">
+          <button mat-icon-button class="mobile-delete-btn" (click)="deleteTask.emit(task.id); $event.stopPropagation()" matTooltip="Delete Task">
+            <mat-icon class="close-icon">close</mat-icon>
+          </button>
+          
           <mat-card-header>
             <div class="card-header-layout">
               <mat-card-title class="task-title">{{task.title}}</mat-card-title>
@@ -66,14 +70,14 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
           <mat-card-actions class="card-actions">
             <!-- Cycle Status Toggle -->
-            <button mat-icon-button (click)="cycleStatus(task)" matTooltip="Update Status" class="action-btn status-btn">
+            <button mat-icon-button (click)="cycleStatus(task); $event.stopPropagation()" matTooltip="Update Status" class="action-btn status-btn">
               <mat-icon>{{getStatusIcon(task.status)}}</mat-icon>
             </button>
             <div class="spacer"></div>
-            <button mat-icon-button color="accent" (click)="editTask.emit(task)" matTooltip="Edit Task" class="action-btn edit-btn">
+            <button mat-icon-button color="accent" (click)="editTask.emit(task); $event.stopPropagation()" matTooltip="Edit Task" class="action-btn edit-btn">
               <mat-icon>edit</mat-icon>
             </button>
-            <button mat-icon-button color="warn" (click)="deleteTask.emit(task.id)" matTooltip="Delete Task" class="action-btn delete-btn">
+            <button mat-icon-button color="warn" (click)="deleteTask.emit(task.id); $event.stopPropagation()" matTooltip="Delete Task" class="action-btn delete-btn">
               <mat-icon>delete</mat-icon>
             </button>
           </mat-card-actions>
@@ -238,6 +242,48 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
       color: #64748b;
       margin-bottom: 16px;
     }
+    .mobile-delete-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: none;
+      z-index: 10;
+      color: #94a3b8;
+    }
+    .mobile-delete-btn:hover {
+      color: #ef4444 !important;
+      background: rgba(239, 68, 68, 0.1) !important;
+    }
+    .close-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    @media (max-width: 768px) {
+      .task-card {
+        cursor: pointer;
+        position: relative !important;
+      }
+      .task-card:hover {
+        background: rgba(255, 255, 255, 0.04) !important;
+      }
+      .edit-btn, .delete-btn {
+        display: none !important;
+      }
+      .mobile-delete-btn {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+      }
+      .status-indicator {
+        margin-right: 36px;
+      }
+    }
     @media (max-width: 600px) {
       .filters-bar {
         flex-direction: column;
@@ -349,6 +395,12 @@ export class TaskList implements AfterViewInit, OnDestroy {
   protected onSearchChange(value: string): void {
     this.searchQuery = value;
     this.searchSubject.next(value);
+  }
+
+  protected onCardClick(task: TaskDto): void {
+    if (window.innerWidth <= 768) {
+      this.editTask.emit(task);
+    }
   }
 
   protected getStatusLabel(status: string): string {
