@@ -117,6 +117,13 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
     ::ng-deep .search-field .mat-mdc-text-field-wrapper {
       background-color: rgba(255, 255, 255, 0.02) !important;
       border-radius: 28px !important;
+      padding: 0 20px !important;
+    }
+    ::ng-deep .search-field input.mat-mdc-input-element {
+      padding: 12px 0 !important;
+    }
+    ::ng-deep .search-field .mat-mdc-form-field-icon-suffix {
+      padding: 6px !important;
     }
     .tasks-grid {
       display: grid;
@@ -192,7 +199,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
     }
     .card-actions {
       border-top: 1px solid rgba(255, 255, 255, 0.05);
-      padding: 8px 12px !important;
+      padding: 12px 20px !important;
       margin: 0 -16px -16px -16px;
       display: flex;
       align-items: center;
